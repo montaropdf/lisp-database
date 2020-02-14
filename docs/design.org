@@ -1,0 +1,116 @@
+#+TITLE: Design of the common lisp implementation of the reader and data for the lisp database format
+
+* Introduction
+  :PROPERTIES:
+  :ID:       9512600c-2c3c-4aa0-a1b5-098ce65338f8
+  :END:
+  This document details the design of the common lisp implementation
+  of the reader and data structure to load and mange a file in the
+  lisp database format. The lisp database format (aka ldb format) can
+  be found in [[file:lispdb.org]].
+
+  The readers will use the =READ= function that read characters from
+  an input stream. In this case the input stream is a file.
+
+  Once the =READ= function is called on an input stream, the program
+  must determine the type of object read. A top-level reader will
+  ensure that each reader is called accordign to the sequence of
+  top-level SEXPs defined by the ldb format.
+
+  If the object is a cons cell, the object read is an SEXP. In this
+  case, the first element of the cons cell is checked.
+
+  Once the cons object is processed, the reader move to the next
+  object.
+* Table definition reader
+  :PROPERTIES:
+  :ID:       f2e35a11-b0e6-46e0-819f-6b00e8ef4f05
+  :END:
+  This reader is responsible to extract all information about
+  a table description and build the appropriate object in memory.
+
+  A table definition is defined by a top-level SEXP, with =TABLE= as
+  the first symbol of the expression.
+* Table reference definition reader
+  :PROPERTIES:
+  :ID:       15db94ec-8465-4f35-aa26-d1414f2d7a80
+  :END:
+  It is responsible to locate and load the table definition referenced
+  by the top-level SEXP, with =REF= as the first symbol of the
+  expression.
+* Field definition reader
+  :PROPERTIES:
+  :ID:       e9ecf0e0-1c4d-4150-806c-854fb007d685
+  :END:
+  It is responsible to extract the information of a field definition for
+  a table and build the appropriate object in memory.
+
+  A field definition is an SEXP inside a table definition who's first
+  element is the symbol =FIELD=.
+* Transaction Records reader
+  :PROPERTIES:
+  :ID:       ed455909-190e-4097-b20b-a32bf7516ab3
+  :END:
+  A transaction record is a top-level SEXP with one of the following
+  symbols as first argument:
+  - =INSERT=
+  - =UPDATE=
+  - =DELETE=
+
+  This reader is responsible for returning a transaction record object
+  for each record read. Those record will be collected and analysed to
+  build the database in memory in addition to a transaction history
+  database.
+* Data records reader
+  :PROPERTIES:
+  :ID:       1f6361b1-cccc-4294-8db1-999c78e1500b
+  :END:
+  Data records are top-level SEXP without any keyword.
+
+  This reader is responsible for returning a data record object for
+  each record read. Thos record will be collected to build the
+  database in memory.
+
+  The data will be kept as a hash table with the primary key of the
+  records as the keys of the hash table and all other fields will be
+  stored as a list in the value of the corresponding key.
+* Data structures in memory
+  :PROPERTIES:
+  :ID:       2ea2dfcc-b06c-4d8c-8a1c-b0e64037aaf6
+  :END:
+** Table structure
+   :PROPERTIES:
+   :ID:       c54624e7-9ff9-4d65-9587-0abdec825293
+   :END:
+  The table will be represented as a class in memory.
+
+  It will contain:
+  - The table definition including the fields definition.
+  - The data collected.
+  - The transactions, if the table is made of transaction records.
+
+  It will provides:
+  - Methods to manage the data and ensure there integrity.
+  - Methods to manage the fields and table definitions and provides
+    ways to reconsolidates the data with there new definition.
+** Field structure
+   :PROPERTIES:
+   :ID:       8667f356-fa5b-4b66-9b00-9cb5e48041f7
+   :END:
+  It is proposed to use a structure to hold all the data defining a
+  field. The table class should be responsible of ensuring the
+  integrity of the fields definition data and between the field
+  definition and the data records.
+** Data structure
+   :PROPERTIES:
+   :ID:       fb7c0c1f-489a-44db-ae82-9e8fa43d8a93
+   :END:
+  The 3 transaction commands, =INSERT=, =UPDATE=, =DELETE=, should be
+  mapped to methods of the table class.
+
+  A hash table, in the table class, will store all the records
+  collected by reading data records and transaction records.
+
+  The primary key will be extracted from the records nd used as the
+  keys in the hash table. The rest will be stored in the value part of
+  the hash table, for the corresponding hash table, as a list.

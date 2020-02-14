@@ -15,13 +15,11 @@
 (defparameter *field-definition* nil
   "Table's field definition.")
 
-(defun red-ldb-field (ldb-stream eof-separator)
-  "Read the content of a lisp expression considering it is a ldb field definition."
-  (progn
-    ))
-
-
-
+(defun read-ldb-field (ldb-stream eof-separator)
+  "Read the content of a lisp expression considering it is an ldb field definition."
+  (let ((parse-result (read ldb-stream nil eof-separator)))
+    (cond ((eq *reader-state* :FIELD-READ)
+           ))))
 
 (defun read-ldb-table (ldb-stream eof-separator)
   "Read the content of a lisp database and load it into memory."
@@ -30,16 +28,16 @@
     (cond ((typep parse-result 'symbol)
            (cond ((eq parse-result 'TABLE)
                   (setf *reader-state* :TABLE-DEFINITION))
-                 ((eq parse-result 'FIELD)
-                  (setf *reader-state* :FIELD-DEFINITION))
+                 ;; ((eq parse-result 'FIELD)
+                 ;;  (setf *reader-state* :FIELD-DEFINITION))
                  ((eq parse-result 'VERSION)
                   (setf *reader-state* :VERSION-DEFINITION))
                  ((eq *reader-state* :TABLE-DEFINITION)
                   (setf *data-table* (make-instance ldb:table:table :name parse-result))
                   (setf *reader-state* :TABLE-NAME))
-                 ((eq *reader-state* :FIELD-DEFINITION)
-                  (setf *field-definition* (ldb:table:make-field :name parse-result))
-                  (setf *reader-state* :FIELD-NAME))
+                 ;; ((eq *reader-state* :FIELD-DEFINITION)
+                 ;;  (setf *field-definition* (ldb:table:make-field :name parse-result))
+                 ;;  (setf *reader-state* :FIELD-NAME))
                  (t
                   (error "Unknown Keyword: ~S" parse-result))))
           ((typep parse-result 'string)
@@ -54,6 +52,11 @@
           ((typep parse-result 'float)
            (t))
           ((typep parse-result 'cons)
+           (cond ((and (eq *reader-state* :TABLE-NAME) (eq (first parse-result) 'FIELD))
+                  (let ((tmp-stream))
+                    (setf *reader-state* :FIELD-READ)
+                    (print parse-result tmp-stream)
+                    (read-ldb-field tmp-stream eof-separator))))
            ((dolist (elt parse-result)
                (read-ldb-table ldb-stream eof-separator)))
           (t
